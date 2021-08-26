@@ -1,0 +1,5 @@
+environment: dev
+mongo:
+  servername: mongodb://mongo:27017
+  database: craft
+  collection: configurations
