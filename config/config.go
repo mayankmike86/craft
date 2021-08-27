@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/spf13/viper"
 )
 
@@ -29,6 +31,7 @@ func GetConfig() Configuration {
 
 	err = viper.Unmarshal(&conf)
 	if err != nil {
+		fmt.Println("unmarshel error")
 		panic(err)
 	}
 
