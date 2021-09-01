@@ -53,15 +53,12 @@ func main() {
 	fmt.Println("hello team")
 	config := config.GetConfig()
 	bgctx := context.Background()
-	fmt.Println("config :", config)
 	db := database.ConnectDB(bgctx, config.Mongo)
 	collection := db.Collection(config.Mongo.Collection)
 	client := &database.MongoUtilsClient{
 		Ctx:  bgctx,
 		Coll: collection,
 	}
-
-	fmt.Println("db :", db)
 	router := mux.NewRouter()
 	api.RegisterRoutes(router, client)
 	log.Fatal(http.ListenAndServe(port, router))

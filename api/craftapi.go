@@ -12,15 +12,18 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const (
+	limitCount = 500
+)
+
 func InsertMydataConfig(db database.MongoUtilsInterfce) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Print("inside InsertCraftConfig", db)
+		fmt.Print("inside InsertCraftConfig")
 		craftConfig := models.CraftConfiguration{}
 
 		body, err := ioutil.ReadAll(r.Body)
 		fmt.Print("inside body", body)
 		if err != nil {
-			fmt.Print("inside 1")
 			w.WriteHeader(http.StatusBadRequest)
 			setResponseHeaders(w)
 			json.NewEncoder(w).Encode(err.Error())
@@ -28,7 +31,6 @@ func InsertMydataConfig(db database.MongoUtilsInterfce) http.HandlerFunc {
 
 		err = json.Unmarshal(body, &craftConfig)
 		if err != nil {
-			fmt.Print("inside 2")
 
 			w.WriteHeader(http.StatusBadRequest)
 			setResponseHeaders(w)
@@ -37,7 +39,6 @@ func InsertMydataConfig(db database.MongoUtilsInterfce) http.HandlerFunc {
 
 		res, err := db.Insert(craftConfig)
 		if err != nil {
-			fmt.Print("inside 3")
 			w.WriteHeader(http.StatusBadRequest)
 			setResponseHeaders(w)
 			json.NewEncoder(w).Encode(err.Error())
@@ -51,23 +52,22 @@ func InsertMydataConfig(db database.MongoUtilsInterfce) http.HandlerFunc {
 
 func GetMydataConfig(db database.MongoUtilsInterfce) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Print("inside InsertCraftConfig", db)
-		//craftConfig := models.CraftConfiguration{}
+		fmt.Print("inside InsertCraftConfig")
 
 		reqVars := mux.Vars(r)
 		timestamp := reqVars["timestamp"]
 		key := reqVars["key"]
 		value := reqVars["value"]
 
-		fmt.Println("inside timestamp: ", timestamp)
-		fmt.Println("inside key: ", key)
-		fmt.Println("inside value: ", value)
-
+		limit := r.URL.Query().Get("limit")
+		limitInt := limitCount
+		if limit != "" {
+			limitInt, _ = strconv.Atoi(limit)
+		}
 		var params models.Params
 		timestamp64, err := strconv.ParseInt(timestamp, 10, 64)
 		params.Timestamp = timestamp64
 		if err != nil {
-			fmt.Print("inside 1")
 			w.WriteHeader(http.StatusBadRequest)
 			setResponseHeaders(w)
 			json.NewEncoder(w).Encode(err.Error())
@@ -75,20 +75,11 @@ func GetMydataConfig(db database.MongoUtilsInterfce) http.HandlerFunc {
 
 		params.Key = key
 		params.Value = value
+		params.Limit = limitInt
+
 		IDs, err := db.FetchMyData(params)
 
-		// err = json.Unmarshal(body, &craftConfig)
-		// if err != nil {
-		// 	fmt.Print("inside 2")
-
-		// 	w.WriteHeader(http.StatusBadRequest)
-		// 	setResponseHeaders(w)
-		// 	json.NewEncoder(w).Encode(err.Error())
-		// }
-
-		// res, err := db.Insert(craftConfig)
 		if err != nil {
-			fmt.Print("inside 3")
 			w.WriteHeader(http.StatusBadRequest)
 			setResponseHeaders(w)
 			json.NewEncoder(w).Encode(err.Error())
@@ -96,6 +87,50 @@ func GetMydataConfig(db database.MongoUtilsInterfce) http.HandlerFunc {
 		setResponseHeaders(w)
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(IDs)
+
+	}
+}
+
+func UpdateMydataConfig(db database.MongoUtilsInterfce) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Print("inside InsertCraftConfig")
+		craftConfig := models.CraftConfiguration{}
+		reqVars := mux.Vars(r)
+		id := reqVars["id"]
+		body, err := ioutil.ReadAll(r.Body)
+		fmt.Print("inside body", body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			setResponseHeaders(w)
+			json.NewEncoder(w).Encode(err.Error())
+		}
+
+		err = json.Unmarshal(body, &craftConfig)
+		if err != nil {
+
+			w.WriteHeader(http.StatusBadRequest)
+			setResponseHeaders(w)
+			json.NewEncoder(w).Encode(err.Error())
+		}
+		var keys []string
+		for _, attributes := range craftConfig.Attributes {
+			keys = append(keys, attributes.Key)
+		}
+		res, msg, err := db.UpdateMydataConfig(id, keys, craftConfig)
+		fmt.Println("msg: ", msg)
+		if err != nil && msg == "Bad Request" {
+			w.WriteHeader(http.StatusBadRequest)
+			setResponseHeaders(w)
+			json.NewEncoder(w).Encode(res)
+		}
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			setResponseHeaders(w)
+			json.NewEncoder(w).Encode(err.Error())
+		}
+		setResponseHeaders(w)
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(res)
 
 	}
 }
@@ -109,6 +144,7 @@ func RegisterRoutes(router *mux.Router, db database.MongoUtilsInterfce) {
 
 	router.HandleFunc("/mydata", InsertMydataConfig(db)).Methods("POST")
 	router.HandleFunc("/mydata/{timestamp}/{key}/{value}", GetMydataConfig(db)).Methods("GET")
+	router.HandleFunc("/mydata/{id}", UpdateMydataConfig(db)).Methods("PATCH")
 
 }
 
