@@ -1,2 +1,2 @@
 # craft
-go
+docker-compose up --build
